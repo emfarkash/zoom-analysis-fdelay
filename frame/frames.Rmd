@@ -1,0 +1,42 @@
+---
+title: "5 min. Zoom Test Trace: Frames"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+params:
+  input_file: "frames.csv"
+  fig_path: "fig/"
+---
+
+```{r}
+library(readr)
+
+stats <- read_csv("frames.csv", col_types = "fcicinffnnnnniiinnnnnn")
+```
+
+```{r}
+splitByValue <- function(data, columnName) {
+  uniqueValues <- unique(data[[columnName]])
+  splitTables <- lapply(uniqueValues, function(value) {
+    subset(data, data[[columnName]] == value)
+  })
+  names(splitTables) <- paste(columnName, uniqueValues, sep = "_")
+  return(splitTables)
+}
+
+# Split the data frame based on the "Value" column
+groupings <- splitByValue(stats, "group")
+```
+
+```{r frames-abs}
+# Print the resulting mini tables
+for (group in names(groupings)) {
+  ylab_text <- paste("MS late for", group)
+  png(filename = paste0("fig/", group, "_plot.png"), width = 800, height = 600)
+  plot(groupings[[group]]$diff, pch = 19, col = "black", cex = 0.3, main = "Absolute (TV-RTP)", ylab = ylab_text)
+  lines(groupings[[group]]$diff, type = "l", col = "black")
+  abline(h = 0, col = "red", lty = 2)
+  dev.off()
+}
+```
