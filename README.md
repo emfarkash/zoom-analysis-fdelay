@@ -95,6 +95,13 @@ usage: zoom_meetings [OPTION...]
   -h, --help                       print this help message
 ```
 
+### Frame Delay 
+
+Calculates differnce between rtp timestamp and the real time in ms.
+Move any .zpkt file into the frame directory.
+"Make" to create frames.csv and frames.html figures.
+"Make clean" to delete all .csv and .html files. 
+
 ### License
 
 This project's source code is released under the [GNU Affero General Public License v3](https://www.gnu.org/licenses/agpl-3.0.html). In particular,
