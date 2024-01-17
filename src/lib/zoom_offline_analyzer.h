@@ -6,6 +6,7 @@
 #include "rtp_stream_analyzer.h"
 #include "zoom.h"
 #include "zoom_analyzer.h"
+#include <set>
 
 namespace zoom
 {
