@@ -5,6 +5,40 @@
 #include <unordered_map>
 #include <string>
 
+struct FiveTuple
+{
+    uint32_t sourceIP;
+    uint16_t sourcePort;
+    uint32_t destIP;
+    uint16_t destPort;
+    uint32_t ssrc;
+
+    // equality operator
+    bool operator==(const FiveTuple &other) const
+    {
+        return std::tie(sourceIP, sourcePort, destIP, destPort, ssrc) ==
+               std::tie(other.sourceIP, other.sourcePort, other.destIP, other.destPort, other.ssrc);
+    }
+};
+
+// hash function for FiveTuple
+namespace std
+{
+    template <>
+    struct hash<FiveTuple>
+    {
+        std::size_t operator()(const FiveTuple &tuple) const
+        {
+            // Combine hash values of individual members
+            return hash<decltype(tuple.sourceIP)>()(tuple.sourceIP) ^
+                   hash<decltype(tuple.sourcePort)>()(tuple.sourcePort) ^
+                   hash<decltype(tuple.destPort)>()(tuple.destPort) ^
+                   hash<decltype(tuple.destIP)>()(tuple.destIP) ^
+                   hash<decltype(tuple.ssrc)>()(tuple.ssrc);
+        }
+    };
+}
+
 void zoom::offline_analyzer::add(const zoom::pkt &pkt)
 {
 
@@ -79,17 +113,19 @@ static inline unsigned long long timeval_to_ms(timeval tv)
     return static_cast<unsigned long long>((static_cast<double>(tv.tv_sec) * 1000.0) + (static_cast<double>(tv.tv_usec) / 1000.0));
 }
 
-int getGroupNumber(std::uint32_t ssrc, std::unordered_map<std::uint32_t, int> &ssrcToCategory, int &categoryCounter)
+int getGroupNumber(std::uint32_t ssrc, const zoom::media_stream_key &k, std::unordered_map<FiveTuple, int> &tupleToCategory, int &categoryCounter)
 {
+
+    FiveTuple tuple = {k.ip_5t.ip_src, k.ip_5t.tp_src, k.ip_5t.ip_dst, k.ip_5t.tp_dst, ssrc};
     // Check if the SSRC is already in the map
-    if (ssrcToCategory.find(ssrc) == ssrcToCategory.end())
+    if (tupleToCategory.find(tuple) == tupleToCategory.end())
     {
         // If not, assign a new category
-        ssrcToCategory[ssrc] = categoryCounter++;
+        tupleToCategory[tuple] = categoryCounter++;
     }
 
     // Return the group number
-    return ssrcToCategory[ssrc];
+    return tupleToCategory[tuple];
 }
 
 double calculateAverage(const std::vector<unsigned long long> &values)
@@ -112,7 +148,7 @@ double calculateAverage(const std::vector<unsigned long long> &values)
     return static_cast<unsigned long long>(sum) / values.size();
 }
 
-std::unordered_map<std::uint32_t, int> ssrcToCategory;
+std::unordered_map<FiveTuple, int> tupleToCategory;
 int categoryCounter = 0;
 
 std::map<int, std::vector<unsigned long long>> rtpMap;
@@ -147,7 +183,7 @@ void zoom::offline_analyzer::_frame_handler(const stream_analyzer &a,
         if (first_pkt->meta.pkt_type == 16 && uniqueRtpTimestamps.insert(rtps).second)
         {
 
-            int groupNumber = getGroupNumber(meta.rtp_ssrc, ssrcToCategory, categoryCounter);
+            int groupNumber = getGroupNumber(meta.rtp_ssrc, a.meta(), tupleToCategory, categoryCounter);
 
             // std::cout << "SSRC: " << meta.rtp_ssrc << " Group Number: " << groupNumber << std::endl;
 
@@ -311,9 +347,9 @@ void zoom::offline_analyzer::_write_frame_log(const stream_analyzer &a, const st
         << std::dec << (unsigned)f.total_pl_len << ","
         << std::dec << (unsigned)f.fps << ","
         << std::setprecision(5) << f.jitter << ","
-        << std::dec << times << "," // Add the new column (diff) to the CSV
-        << std::dec << (unsigned)rtps << ","
-        << std::dec << (unsigned)diff << ","
+        << std::dec << times << "," // Add the new columns
+        << std::dec << rtps << ","
+        << std::dec << diff << ","
         << std::dec << (unsigned)groupNumber
         << std::endl;
 }
