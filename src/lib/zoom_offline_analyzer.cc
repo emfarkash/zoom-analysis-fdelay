@@ -161,32 +161,22 @@ void zoom::offline_analyzer::_frame_handler(const stream_analyzer &a,
     auto meta = a.meta();
     const auto *first_pkt = &(f.pkts[0]);
 
-    // if length of first100rtp is < 100, append to id and DO NOTHING ELSE
-
-    // if length of first 100 rtp is >= 100, do the following
-    // get avg of the first 100, subtract for each
-
     // modifications begin here
     if (_frame_log.enabled)
     {
         std::uint32_t rtp_ts = f.rtp_ts;
 
-        // must subtract the average of first 100 sec to this
-        // auto times = timeval_to_ms(f.ts_max);
         auto times = timeval_to_ms(f.ts_max);
         // std::cout << "Times: " << times << std::endl;
         auto rtps = rtp_ts_to_wallclock_ms(rtp_ts, 90000);
 
-        // check if the media is video
-        // pkt.proto.rtp.pt
-
-        if (first_pkt->meta.pkt_type == 16 && uniqueRtpTimestamps.insert(rtps).second)
+        // check if the media is video and not FEC
+        if (first_pkt->meta.pkt_type == 16 && (a.meta().stream_type == stream_type::media))
         {
 
             int groupNumber = getGroupNumber(meta.rtp_ssrc, a.meta(), tupleToCategory, categoryCounter);
 
             // std::cout << "SSRC: " << meta.rtp_ssrc << " Group Number: " << groupNumber << std::endl;
-
             if (rtpMap[groupNumber].size() < 100)
             {
                 // std::cout << "rtp: " << rtps << std::endl;
@@ -195,8 +185,6 @@ void zoom::offline_analyzer::_frame_handler(const stream_analyzer &a,
                 tsMap[groupNumber].push_back(times);
             }
 
-            // unsigned long long sum_rtp = std::accumulate(first100rtp.begin(), first100rtp.end(), 0ULL);
-            // double avg_rtp = static_cast<double>(sum_rtp) / first100rtp.size();
             double avg_rtp = calculateAverage(rtpMap[groupNumber]);
 
             double avg_ts = calculateAverage(tsMap[groupNumber]);
@@ -347,8 +335,8 @@ void zoom::offline_analyzer::_write_frame_log(const stream_analyzer &a, const st
         << std::dec << (unsigned)f.total_pl_len << ","
         << std::dec << (unsigned)f.fps << ","
         << std::setprecision(5) << f.jitter << ","
-        << std::dec << times << "," // Add the new columns
-        << std::dec << rtps << ","
+        << std::setprecision(std::numeric_limits<long double>::digits10) << times << "," // Add the new columns
+        << std::setprecision(std::numeric_limits<long double>::digits10) << rtps << ","
         << std::dec << diff << ","
         << std::dec << (unsigned)groupNumber
         << std::endl;
