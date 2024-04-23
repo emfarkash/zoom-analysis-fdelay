@@ -114,7 +114,7 @@ bool compareByRTPS(const Frame &a, const Frame &b)
 }
 
 // Function to calculate lateness percentage
-double latenessPercentJB(std::vector<Frame> frames)
+double latenessPercentJB(std::vector<Frame> frames, std::vector<double> &skipArray, std::vector<double> &freezeArray)
 {
     double lateness = 0.0;
     int this_out_time = 0;
@@ -171,6 +171,8 @@ double latenessPercentJB(std::vector<Frame> frames)
     // Find the minimum and maximum values
     for (const auto &frame : frames)
     {
+	skipArray.push_back(frame.skip);
+	freezeArray.push_back(frame.freeze);
         min_s = std::min(min_s, frame.min_ts_s);
         if (frame.min_ts_s == min_s)
         {
@@ -217,10 +219,12 @@ int main()
 
     // Calculate lateness percentage
     std::vector<double> special_percent_list;
+    std::vector<double> skipArray;
+    std::vector<double> freezeArray;
     for (const auto &group : groupings)
     {
         std::cout << "grouping" << std::endl;
-        double result = latenessPercentJB(group.second);
+        double result = latenessPercentJB(group.second, skipArray, freezeArray);
         std::cout << "Result: " << result << std::endl;
         if (!std::isnan(result) && result < 1 && result >= 0)
         {
@@ -234,6 +238,17 @@ int main()
     {
         output << percent << std::endl;
     }
-
+    
+    std::ofstream output1("skip_list.csv");
+    for (const auto &skip : skipArray)
+    {
+        output1 << skip << std::endl;
+    }
+ 
+    std::ofstream output2("freeze_list.csv");
+    for (const auto &freeze : freezeArray)
+    {
+        output2 << freeze << std::endl;
+    }
     return 0;
 }
